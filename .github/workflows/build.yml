@@ -12,7 +12,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Gerekli sistem paketlerini kur (Colab'daki gibi)
+      # 1. Gerekli Bağımlılıkları Yükle
       - name: Install dependencies
         run: |
           sudo apt-get update
@@ -31,17 +31,25 @@ jobs:
             libswscale-dev \
             libavformat-dev \
             libavcodec-dev \
-            zlib1g-dev
+            zlib1g-dev \
+            libssl-dev \
+            libffi-dev \
+            autoconf \
+            libtool \
+            openjdk-17-jdk
 
-      # Buildozer Action kullan (Hazır ve hızlı)
-      - name: Build with Buildozer
-        uses: ArtemSBulgakov/buildozer-action@v1
-        id: buildozer
-        with:
-          command: buildozer android debug
-          buildozer_version: master
+      # 2. Buildozer'ı Manuel Kur
+      - name: Install Buildozer
+        run: |
+          pip3 install --upgrade pip
+          pip3 install buildozer cython==0.29.33
 
-      # APK'yı Artifact olarak yükle (İndirilebilir yap)
+      # 3. APK Derle (Manuel Komut)
+      - name: Build APK
+        run: |
+          yes | buildozer android debug
+
+      # 4. APK'yı Yükle
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
