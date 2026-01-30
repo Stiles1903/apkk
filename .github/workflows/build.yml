@@ -12,7 +12,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # 1. Gerekli Bağımlılıkları Yükle
+      # 1. Gerekli Bağımlılıkları Yükle (Eksiksiz Liste)
       - name: Install dependencies
         run: |
           sudo apt-get update
@@ -36,7 +36,14 @@ jobs:
             libffi-dev \
             autoconf \
             libtool \
-            openjdk-17-jdk
+            openjdk-17-jdk \
+            libsqlite3-dev \
+            libbz2-dev \
+            liblzma-dev \
+            libncurses5-dev \
+            libncursesw5-dev \
+            libreadline-dev \
+            libgdbm-dev
 
       # 2. Buildozer'ı Manuel Kur
       - name: Install Buildozer
@@ -44,10 +51,11 @@ jobs:
           pip3 install --upgrade pip
           pip3 install buildozer cython==0.29.33
 
-      # 3. APK Derle (Manuel Komut)
+      # 3. APK Derle
       - name: Build APK
         run: |
-          yes | buildozer android debug
+          # SDK Lisansını buildozer.spec'den okur
+          buildozer android debug
 
       # 4. APK'yı Yükle
       - name: Upload APK
