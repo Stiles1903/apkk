@@ -27,7 +27,7 @@ requirements = python3,kivy,android,pyjnius
 orientation = portrait
 
 # (list) List of service to declare
-services = ElChapoService:service.py
+services = Myservice:service.py
 
 #
 # Android specific
