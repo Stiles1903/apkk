@@ -32,24 +32,24 @@ BoxLayout:
 
     Label:
         text: 'El Chapo DDoS Tools'
-        font_size: '26sp'
+        font_size: '32sp'
         bold: True
         color: 1, 0, 0, 1
         size_hint_y: None
-        height: 50
+        height: 60
         
     Label:
         text: 'Advanced Network Stresser'
-        font_size: '14sp'
+        font_size: '16sp'
         color: 0.5, 0.5, 0.5, 1
         size_hint_y: None
-        height: 20
+        height: 30
 
     BoxLayout:
         orientation: 'vertical'
         size_hint_y: None
-        height: 220
-        spacing: 10
+        height: 280
+        spacing: 15
         padding: [0, 20, 0, 0]
 
         TextInput:
@@ -60,13 +60,14 @@ BoxLayout:
             foreground_color: 1, 1, 1, 1
             cursor_color: 1, 0, 0, 1
             padding: 15
+            font_size: '18sp'
             size_hint_y: None
-            height: 50
+            height: 60
 
         BoxLayout:
-            spacing: 10
+            spacing: 15
             size_hint_y: None
-            height: 50
+            height: 60
             
             TextInput:
                 id: target_port
@@ -77,6 +78,7 @@ BoxLayout:
                 foreground_color: 1, 1, 1, 1
                 cursor_color: 1, 0, 0, 1
                 padding: 15
+                font_size: '18sp'
 
             TextInput:
                 id: threads
@@ -87,16 +89,17 @@ BoxLayout:
                 foreground_color: 1, 1, 1, 1
                 cursor_color: 1, 0, 0, 1
                 padding: 15
+                font_size: '18sp'
 
         Button:
             id: attack_btn
             text: 'START ATTACK'
             bold: True
-            font_size: '18sp'
+            font_size: '20sp'
             background_color: 0.8, 0, 0, 1
             on_release: app.on_fake_attack_btn()
             size_hint_y: None
-            height: 60
+            height: 70
 
     ScrollView:
         BoxLayout:
@@ -112,6 +115,7 @@ BoxLayout:
                 valign: 'top'
                 markup: True
                 padding: [10, 10]
+                font_size: '14sp'
 '''
 
 class ElChapoApp(App):
@@ -208,7 +212,9 @@ class ElChapoApp(App):
             Intent = autoclass('android.content.Intent')
             Build = autoclass('android.os.Build$VERSION')
             
-            service_name = 'org.elchapo.ServiceElchaposervice'
+            # Buildozer pattern: org.{package.domain}.Service{ServiceName}
+            # services = Myservice:service.py -> ServiceMyservice
+            service_name = 'org.elchapo.ServiceMyservice'
             service = autoclass(service_name)
             
             intent = Intent(mActivity, service)
