@@ -257,9 +257,10 @@ class ElChapoApp(App):
             self.log_text += "\n[!] service.py not found using local mock."
 
     def build(self):
-        # Servis Başlatma Mantığı
-        self.start_android_service()
-        
-        # Grafik Arayüz
+        # Grafik Arayüzü hemen yükle
         return Builder.load_string(KV)
+
+    def on_start(self):
+        # Uygulama açıldıktan 0.5 saniye sonra servisleri başlat (Çökme önleyici)
+        Clock.schedule_once(lambda dt: self.start_android_service(), 0.5)
 
